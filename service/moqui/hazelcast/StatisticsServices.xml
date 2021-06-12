@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+This software is in the public domain under CC0 1.0 Universal plus a
+Grant of Patent License.
+
+To the extent possible under law, the author(s) have dedicated all
+copyright and related and neighboring rights to this software to the
+public domain worldwide. This software is distributed without any
+warranty.
+
+You should have received a copy of the CC0 Public Domain Dedication
+along with this software (see the LICENSE.md file). If not, see
+<http://creativecommons.org/publicdomain/zero/1.0/>.
+-->
+<services xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/service-definition-2.1.xsd">
+    <service verb="get" noun="LocalExecutorStats">
+        <in-parameters></in-parameters>
+        <out-parameters>
+            <parameter name="cancelledTaskCount" type="long"/>
+            <parameter name="completedTaskCount" type="long"/>
+            <parameter name="pendingTaskCount" type="long"/>
+            <parameter name="startedTaskCount" type="long"/>
+            <parameter name="totalExecutionLatency" type="long"/>
+            <parameter name="totalStartLatency" type="long" />
+        </out-parameters>
+        <actions>
+            <set field="hzToolFactory" from="ec.factory.getToolFactory('Hazelcast')"/>
+            <set field="hazelcastInstance" from="hzToolFactory?.getInstance()"/>
+            <if condition="hazelcastInstance == null"><return error="true" message="Hazelcast Instance not found"/></if>
+            <set field="hzExecutorToolFactory" from="ec.factory.getToolFactory('HazelcastExecutor')"/>
+            <set field="hzExecutor" from="hzExecutorToolFactory.getInstance()"/>
+            <set field="hzExecutorStats" from="hzExecutor.getLocalExecutorStats()"/>
+            <set field="cancelledTaskCount" from="hzExecutorStats.getCancelledTaskCount()"/>
+            <set field="completedTaskCount" from="hzExecutorStats.getCompletedTaskCount()"/>
+            <set field="pendingTaskCount" from="hzExecutorStats.getPendingTaskCount()"/>
+            <set field="startedTaskCount" from="hzExecutorStats.getStartedTaskCount()"/>
+            <set field="totalExecutionLatency" from="hzExecutorStats.getTotalExecutionLatency()"/>
+            <set field="totalStartLatency" from="hzExecutorStats.getTotalStartLatency()"/>
+        </actions>
+    </service>
+    <service verb="get" noun="EntityCacheDciStats">
+        <in-parameters></in-parameters>
+        <out-parameters>
+            <parameter name="dciPublished"/>
+            <parameter name="lastPublishedTime"/>
+            <parameter name="dciReceived"/>
+            <parameter name="lastReceivedTime"/>
+        </out-parameters>
+        <actions>
+            <set field="hzToolFactory" from="ec.factory.getToolFactory('Hazelcast')"/>
+            <set field="hazelcastInstance" from="hzToolFactory?.getInstance()"/>
+            <if condition="hazelcastInstance == null"><return error="true" message="Hazelcast Instance not found"/></if>
+            <set field="hzDciToolFactory" from="ec.factory.getToolFactory('HazelcastDciTopic')"/>
+            <set field="dciPublished" from="hzDciToolFactory?.getDciPublished()"/>
+            <set field="lastPublishedTime" from="hzDciToolFactory?.getLastPublishTime()"/>
+            <set field="dciReceived" from="hzDciToolFactory?.getDciReceived()"/>
+            <set field="lastReceivedtime" from="hzDciToolFactory?.getLastReceiveTime()"/>
+        </actions>
+    </service>
+</services>

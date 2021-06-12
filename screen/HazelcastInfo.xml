@@ -23,36 +23,74 @@ along with this software (see the LICENSE.md file). If not, see
         <set field="cluster" from="hazelcastInstance.getCluster()"/>
         <set field="clusterState" from="cluster.getClusterState()"/>
 
-        <set field="hzDciToolFactory" from="ec.factory.getToolFactory('HazelcastDciTopic')"/>
+        <set field="hzExecutorToolFactory" from="ec.factory.getToolFactory('HazelcastExecutor')"/>
+        <set field="hzExecutor" from="hzExecutorToolFactory.getInstance()"/>
+        <set field="hzExecutorStats" from="hzExecutor.getLocalExecutorStats()"/>
+        <set field="executorStats" from="[:]"/>
+        <set field="dciStats" from="[:]"/>
+        <script><![CDATA[
+                        import org.moqui.impl.service.ServiceCallAsyncImpl.AsyncServiceCallable
+                        import com.hazelcast.cluster.Member
+                        import java.util.concurrent.Future
+                        def clusterMembers = cluster.getMembers()
+
+                        for ( Member member : clusterMembers ) {
+                            logger.info( "isLocalMember " + member.localMember() )
+                            logger.info( "member.socketaddress " + member.getSocketAddress() )
+                            AsyncServiceCallable callable = new AsyncServiceCallable(ec, "moqui.hazelcast.StatisticsServices.get#LocalExecutorStats", [:])
+                            Future<Object> future = hzExecutor.submitToMember(callable, member)
+                            def distResults =  future.get()
+                            executorStats[member.getUuid()] = distResults
+
+                            callable = new AsyncServiceCallable(ec, "moqui.hazelcast.StatisticsServices.get#EntityCacheDciStats", [:])
+                            Future<Object> dciFuture = hzExecutor.submitToMember(callable, member)
+                            def dciResults =  dciFuture.get()
+                            dciStats[member.getUuid()] = dciResults
+                          }
+                        ]]>
+        </script>
     </actions>
     <widgets>
-        <container-row><row-col md="4">
+        <container-row><row-col md="6">
             <label text="Cluster" type="strong"/>
             <container-row><row-col xs="1"/><row-col xs="3"><label text="State" type="strong"/></row-col>
                 <row-col xs="8"><label text="${cluster.getClusterState()}"/></row-col></container-row>
             <container-row><row-col xs="1"/><row-col xs="3"><label text="Version" type="strong"/></row-col>
                 <row-col xs="8"><label text="${cluster.getClusterVersion()}"/></row-col></container-row>
-
             <container-row><row-col xs="1"/><row-col xs="3">
                 <label text="Members" type="strong"/>
             </row-col><row-col xs="8">
-                <section-iterate name="ClusterMembers" list="cluster.getMembers()" entry="member"><widgets>
-                    <label text="${member.getAddress()} - ${member.getVersion()}${member.localMember() ? ' (local)' : ''}" type="div"/>
+                <section-iterate name="ClusterMembers" list="cluster.getMembers()" entry="member">
+                    <actions>
+                        <set field="memberUuid" from="member.getUuid()"/>
+                    </actions>
+                    <widgets>
+                    <label text="${member.getAddress()} - ${member.getVersion()}${member.localMember() ? ' (local)' : ''}" type="h3"/>
+                    <container-row>
+                        <row-col md="6">
+                            <label text="Entity Cache DCI" type="strong"/>
+                            <container-row><row-col xs="1"/><row-col xs="4"><label text="Published" type="strong"/></row-col>
+                                <row-col xs="6"><label text="${ec.l10n.format(dciStats[memberUuid]['dciPublished'], '#,##0')}"/></row-col></container-row>
+                            <container-row><row-col xs="1"/><row-col xs="4"><label text="Last Publish" type="strong"/></row-col>
+                                <row-col xs="6"><label text="${ec.l10n.format(new Timestamp(dciStats[memberUuid].lastPublishedTime), null)}" condition="dciStats[memberUuid].dciPublished"/></row-col></container-row>
+                            <container-row><row-col xs="1"/><row-col xs="4"><label text="Received" type="strong"/></row-col>
+                                <row-col xs="6"><label text="${ec.l10n.format(dciStats[memberUuid].dciReceived, '#,##0')}"/></row-col></container-row>
+                            <container-row><row-col xs="1"/><row-col xs="4"><label text="Last Receive" type="strong"/></row-col>
+                                <row-col xs="6"><label text="${ec.l10n.format(new Timestamp(dciStats[memberUuid].lastReceivedTime), null)}" condition="dciStats[memberUuid].dciReceived"/></row-col></container-row>
+                        </row-col><row-col md="6">
+                        <label text="Executor Stats" type="strong"/>
+                        <container-row><row-col xs="1"/><row-col xs="4"><label text="Pending" type="strong"/></row-col>
+                            <row-col xs="6"><label text="${ec.l10n.format(executorStats[memberUuid]['pendingTaskCount'], '#,##0')}"/></row-col></container-row>
+                        <container-row><row-col xs="1"/><row-col xs="4"><label text="Started" type="strong"/></row-col>
+                            <row-col xs="6"><label text="${ec.l10n.format(executorStats[memberUuid]['startedTaskCount'], null)}" /></row-col></container-row>
+                        <container-row><row-col xs="1"/><row-col xs="4"><label text="Completed" type="strong"/></row-col>
+                            <row-col xs="6"><label text="${ec.l10n.format(executorStats[memberUuid]['completedTaskCount'], '#,##0')}"/></row-col></container-row>
+                        <container-row><row-col xs="1"/><row-col xs="4"><label text="Total Start Latency" type="strong"/></row-col>
+                            <row-col xs="6"><label text="${ec.l10n.format(executorStats[memberUuid]['totalStartLatency'], null)}" /></row-col></container-row>
+                        </row-col>
+                    </container-row>
                 </widgets></section-iterate>
             </row-col></container-row>
-
-        </row-col><row-col md="4">
-            <label text="Entity Cache DCI" type="strong"/>
-            <container-row><row-col xs="1"/><row-col xs="4"><label text="Published" type="strong"/></row-col>
-                <row-col xs="7"><label text="${ec.l10n.format(hzDciToolFactory?.getDciPublished(), '#,##0')}"/></row-col></container-row>
-            <container-row><row-col xs="1"/><row-col xs="4"><label text="Last Publish" type="strong"/></row-col>
-                <row-col xs="7"><label text="${ec.l10n.format(new Timestamp(hzDciToolFactory?.getLastPublishTime()), null)}" condition="hzDciToolFactory?.getLastPublishTime()"/></row-col></container-row>
-            <container-row><row-col xs="1"/><row-col xs="4"><label text="Received" type="strong"/></row-col>
-                <row-col xs="7"><label text="${ec.l10n.format(hzDciToolFactory?.getDciReceived(), '#,##0')}"/></row-col></container-row>
-            <container-row><row-col xs="1"/><row-col xs="4"><label text="Last Receive" type="strong"/></row-col>
-                <row-col xs="7"><label text="${ec.l10n.format(new Timestamp(hzDciToolFactory?.getLastReceiveTime()), null)}" condition="hzDciToolFactory?.getLastReceiveTime()"/></row-col></container-row>
-        </row-col><row-col md="4">
-
         </row-col></container-row>
     </widgets>
 </screen>
