@@ -17,9 +17,11 @@ import com.hazelcast.aws.AwsDiscoveryStrategyFactory
 import com.hazelcast.config.Config
 import com.hazelcast.config.DiscoveryStrategyConfig
 import com.hazelcast.config.JoinConfig
+import com.hazelcast.config.PartitionGroupConfig
 import com.hazelcast.config.XmlConfigBuilder
 import com.hazelcast.core.Hazelcast
 import com.hazelcast.core.HazelcastInstance
+import com.hazelcast.kubernetes.HazelcastKubernetesDiscoveryStrategyFactory
 import groovy.transform.CompileStatic
 import org.moqui.context.ExecutionContextFactory
 import org.moqui.context.ToolFactory
@@ -70,6 +72,7 @@ class HazelcastToolFactory implements ToolFactory<HazelcastInstance> {
             joinConfig.getTcpIpConfig().setEnabled(false)
             joinConfig.getMulticastConfig().setEnabled(true)
             joinConfig.getAwsConfig().setEnabled(false)
+            joinConfig.getKubernetesConfig().setEnabled(false)
 
             joinConfig.multicastConfig.setMulticastGroup(System.getProperty("hazelcast_multicast_group") ?: "224.2.2.3")
             joinConfig.multicastConfig.setMulticastPort((System.getProperty("hazelcast_multicast_port") ?: "54327") as int)
@@ -81,6 +84,7 @@ class HazelcastToolFactory implements ToolFactory<HazelcastInstance> {
             joinConfig.getTcpIpConfig().setEnabled(true)
             joinConfig.getMulticastConfig().setEnabled(false)
             joinConfig.getAwsConfig().setEnabled(false)
+            joinConfig.getKubernetesConfig().setEnabled(false)
 
             String tcpIpMembers = System.getProperty("hazelcast_tcp_ip_members")
             if (tcpIpMembers) {
@@ -98,6 +102,7 @@ class HazelcastToolFactory implements ToolFactory<HazelcastInstance> {
             joinConfig.getTcpIpConfig().setEnabled(false)
             joinConfig.getMulticastConfig().setEnabled(false)
             joinConfig.getAwsConfig().setEnabled(false)
+            joinConfig.getKubernetesConfig().setEnabled(false)
             AwsDiscoveryStrategyFactory awsDiscoveryStrategyFactory = new AwsDiscoveryStrategyFactory()
 
             Map<String, Comparable> properties = new HashMap<String, Comparable>()
@@ -109,6 +114,9 @@ class HazelcastToolFactory implements ToolFactory<HazelcastInstance> {
             if (System.getProperty("hazelcast_aws_security_group")) properties.put("security-group-name", System.getProperty("hazelcast_aws_security_group"))
             if (System.getProperty("hazelcast_aws_tag_key")) properties.put("tag-key", System.getProperty("hazelcast_aws_tag_key"))
             if (System.getProperty("hazelcast_aws_tag_value")) properties.put("tag-value", System.getProperty("hazelcast_aws_tag_value"))
+            if (System.getProperty("hazelcast_aws_service_name")) properties.put("service-name", System.getProperty("hazelcast_aws_service_name"))
+            if (System.getProperty("hazelcast_aws_family")) properties.put("family", System.getProperty("hazelcast_aws_family"))
+            if (System.getProperty("hazelcast_aws_cluster")) properties.put("cluster", System.getProperty("hazelcast_aws_cluster"))
             properties.put("hz-port",System.getProperty("hazelcast_aws_hz_port") ?: "5701")
 
             DiscoveryStrategyConfig discoveryStrategyConfig = new DiscoveryStrategyConfig(awsDiscoveryStrategyFactory, properties)
@@ -121,6 +129,30 @@ class HazelcastToolFactory implements ToolFactory<HazelcastInstance> {
             if (System.getProperty("hazelcast_interface1")) hzConfig.networkConfig.interfaces.addInterface(System.getProperty("hazelcast_interface1"))
             if (System.getProperty("hazelcast_interface2")) hzConfig.networkConfig.interfaces.addInterface(System.getProperty("hazelcast_interface2"))
             if (System.getProperty("hazelcast_interface3")) hzConfig.networkConfig.interfaces.addInterface(System.getProperty("hazelcast_interface3"))
+        }
+        if (System.getProperty("hazelcast_k8s_enabled") == "true") {
+            logger.info("Found hazelcast_kubernetes_enabled=true so enabling kubernetes")
+
+            JoinConfig joinConfig = hzConfig.getNetworkConfig().getJoin()
+            joinConfig.getTcpIpConfig().setEnabled(false)
+            joinConfig.getMulticastConfig().setEnabled(false)
+            joinConfig.getAwsConfig().setEnabled(false)
+            joinConfig.getKubernetesConfig().setEnabled(true)
+
+            joinConfig.kubernetesConfig.setProperty("namespace", System.getProperty("hazelcast_k8s_namespace") ?: "default")
+            if (System.getProperty("hazelcast_k8s_service_name"))
+                joinConfig.kubernetesConfig.setProperty("service-name", System.getProperty("hazelcast_k8s_service_name"))
+            if (System.getProperty("hazelcast_k8s_service_label_name"))
+                joinConfig.kubernetesConfig.setProperty("service-label-name", System.getProperty("hazelcast_k8s_service_label_name"))
+            if (System.getProperty("hazelcast_k8s_service_label_value"))
+                joinConfig.kubernetesConfig.setProperty("service-label-value", System.getProperty("hazelcast_k8s_service_label_value"))
+            if (System.getProperty("hazelcast_k8s_pod_label_name"))
+                joinConfig.kubernetesConfig.setProperty("pod-label-name", System.getProperty("hazelcast_k8s_pod_label_name"))
+            if (System.getProperty("hazelcast_k8s_pod_label_value"))
+                joinConfig.kubernetesConfig.setProperty("pod-label-value", System.getProperty("hazelcast_k8s_pod_label_value"))
+            if (System.getProperty("hazelcast_k8s_zone_aware") == "true")
+                hzConfig.getPartitionGroupConfig().setEnabled(true).setGroupType(PartitionGroupConfig.MemberGroupType.ZONE_AWARE)
+
         }
 
         hazelcastInstance = Hazelcast.getOrCreateHazelcastInstance(hzConfig)
