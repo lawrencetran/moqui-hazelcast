@@ -2,7 +2,7 @@
 <!-- No copyright or license for configuration file, details here are not considered a creative work. -->
 <moqui-conf xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://moqui.org/xsd/moqui-conf-2.1.xsd">
 
-    <default-property name="hazelcast_group_name" value="dev"/>
+    <default-property name="hazelcast_group_name" value="moqui_h4"/>
 
     <default-property name="hazelcast_multicast_enabled" value="false"/>
     <default-property name="hazelcast_multicast_group" value="224.2.2.3"/>
@@ -21,11 +21,23 @@
     <default-property name="hazelcast_aws_tag_value" value=""/>
     <default-property name="hazelcast_aws_host_header" value="ec2.amazonaws.com"/>
     <default-property name="hazelcast_aws_hz_port" value="5701"/>
+    <default-property name="hazelcast_aws_service_name" value=""/>
+    <default-property name="hazelcast_aws_family" value=""/>
+    <default-property name="hazelcast_aws_cluster" value=""/>
 
     <default-property name="hazelcast_interfaces_enabled" value="false"/>
     <default-property name="hazelcast_interface1" value=""/>
     <default-property name="hazelcast_interface2" value=""/>
     <default-property name="hazelcast_interface3" value=""/>
+
+    <default-property name="hazelcast_k8s_enabled" value="false"/>
+    <default-property name="hazelcast_k8s_namespace" value=""/>
+    <default-property name="hazelcast_k8s_service_name" value=""/>
+    <default-property name="hazelcast_k8s_service_label_name" value=""/>
+    <default-property name="hazelcast_k8s_service_label_value" value=""/>
+    <default-property name="hazelcast_k8s_pod_label_name" value=""/>
+    <default-property name="hazelcast_k8s_pod_label_value" value=""/>
+    <default-property name="hazelcast_k8s_zone_aware" value="false"/>
 
     <tools notification-topic-factory="HazelcastNotificationTopic">
         <!-- Hazelcast distributed tool set for caching, topics, executors, etc -->
@@ -89,7 +101,8 @@
         </screen>
     </screen-facade>
 
-    <service-facade distributed-factory="HazelcastExecutor"/>
+    <!-- Now set on ServiceFacade programmatically in post-facade init so HazelcastExecutorToolFactory doesn't have to init before facades:
+        <service-facade distributed-factory="HazelcastExecutor"/> -->
 
     <entity-facade distributed-cache-invalidate="true" dci-topic-factory="HazelcastDciTopic"/>
 </moqui-conf>
